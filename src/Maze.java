@@ -7,22 +7,27 @@ public class Maze {
     private final boolean[][] freeCells;//Cells which the player can move to
     private final ArrayList<MazeObject> mazeObjects;
     private final Player player;
+    private final Exit exit;
 
-    public Maze(int width, int height, ArrayList<MazeObject> mazeObjects, int playerX, int playerY){
+    public Maze(int width, int height, ArrayList<MazeObject> mazeObjects, int playerX, int playerY, Exit exit){
         this.width = width;
         this.height = height;
         this.mazeObjects = mazeObjects;
+        this.exit = exit;
+        mazeObjects.add(exit);
         this.freeCells = new boolean[width][height];
         this.player = new Player(playerX, playerY);
     }
 
     //this overloaded method is temporary and will not be in finished product.
-    public Maze(int width, int height, ArrayList<MazeObject> mazeObjects, int playerX, int playerY, boolean[][] freeCells){
+    public Maze(int width, int height, ArrayList<MazeObject> mazeObjects, int playerX, int playerY, boolean[][] freeCells, Exit exit){
         this.width = width;
         this.height = height;
         this.mazeObjects = mazeObjects;
+        mazeObjects.add(exit);
         this.freeCells = freeCells;
         this.player = new Player(playerX, playerY);
+        this.exit = exit;
     }
 
     private Point getTarget(byte direction, boolean opposite){
@@ -37,12 +42,13 @@ public class Maze {
         };
     }
 
-    public void movePlayer(byte direction){
+    public Boolean movePlayer(byte direction){
         //direction can be one of four values: 0 is up, 1 is right, 2 is left, 3 is down
+        //return true if and only if the player reached the exit.
         Point target = getTarget(direction, false);
 
         if(target.x < 0 || target.x >= width || target.y < 0 || target.y >= height){
-            return;
+            return false;
         }
 
         if(freeCells[target.y][target.x]){
@@ -70,6 +76,7 @@ public class Maze {
                 }
             }
         }
+        return player.origin.equals(exit.origin);
     }
 
     public String toString(){

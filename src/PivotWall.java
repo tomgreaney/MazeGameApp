@@ -20,7 +20,7 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
         this.changesPivot = changesPivot;
         if(reversible){
             this.reverseState = 1;
-            sequenceStep = 1;
+            sequenceStep = 0;
         }else{
             this.reverseState = 0;
         }
@@ -34,22 +34,25 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
         isReversing = true;
         Point[] changedCells;
         setReverse();
-        setNextEndPoint();
-        changePivot();
         changedCells = update(playerOrigin, oldPlayerOrigin);
         setReverse();
-        changePivot();
-        setNextEndPoint();
         isReversing = false;
         return changedCells;
     }
 
     private void setReverse(){
-        if(reverseState == 0){
+        if(reverseState == 0) {
+            changePivot();
             clockWise = !clockWise;
-        }else{
+        }else {
+            if(((sequenceStep != 0 || reverseState != 1) && (sequenceStep != sequenceLength-1 || reverseState != -1))){
+                //not at the end or start of the sequence
+                changePivot();
+                clockWise = !clockWise;
+            }
             reverseState = reverseState * -1;
         }
+        setNextEndPoint();
     }
 
     public Point[] update(Point playerOrigin, Point oldPlayerOrigin) {
