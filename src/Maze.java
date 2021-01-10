@@ -1,5 +1,6 @@
 import java.awt.Point;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Maze {
     private final int width;
@@ -30,72 +31,79 @@ public class Maze {
         this.exit = exit;
     }
 
-    private Point getTarget(byte direction, boolean opposite){
-        if(opposite) {
-            direction = (byte) (~direction & 0x03);
-        }
-        return switch (direction) {
-            default -> new Point(player.origin.x, player.origin.y - 1);
-            case (1) -> new Point(player.origin.x+1, player.origin.y);
-            case (2) -> new Point(player.origin.x - 1, player.origin.y);
-            case (3) -> new Point(player.origin.x, player.origin.y + 1);
-        };
-    }
-
     public Boolean movePlayer(byte direction){
         //direction can be one of four values: 0 is up, 1 is right, 2 is left, 3 is down
         //return true if and only if the player reached the exit.
-        Point target = getTarget(direction, false);
+        Point target = Move.translate(player.origin, direction, true);
 
         if(target.x < 0 || target.x >= width || target.y < 0 || target.y >= height){
             return false;
         }
 
         if(freeCells[target.y][target.x]){
-            Point[] changedCells;
             Point oldPlayerOrigin = new Point(player.origin);
-            if(player.move(direction)) {
+            byte secondLastMove = player.getLastMove();
+            Point[] conditionalChangeCells = new Point[PivotWall.count];
+            int count = 0;
 
+            if(player.move(direction)) {
                 for (MazeObject foo : mazeObjects) {
-                    if (foo instanceof PlayerMoveUpdatable) {
-                        changedCells = ((PlayerMoveUpdatable) foo).update(player.origin, oldPlayerOrigin);
-                        for (Point changedCell : changedCells) {
-                            freeCells[changedCell.y][changedCell.x] = !freeCells[changedCell.y][changedCell.x];
-                        }
+                    if (foo instanceof PivotWall) {
+                        Point[][] updateInfo = ((PlayerMoveUpdatable) foo).update(oldPlayerOrigin, player.origin, player.getLastMove(), secondLastMove);
+                        count = handleUpdate(conditionalChangeCells, count, updateInfo);
                     }
                 }
             }else{
-                oldPlayerOrigin = getTarget(player.getLastMove(), true);//might run into bugs if player reverses after being pushed
+                //oldPlayerOrigin = getTarget(player.getLastMove(), true);//might run into bugs if player reverses after being pushed
                 for (MazeObject foo : mazeObjects) {
-                    if (foo instanceof PlayerMoveUpdatable) {
-                        changedCells = ((PlayerMoveUpdatable) foo).reverse(player.origin, oldPlayerOrigin);
-                        for (Point changedCell : changedCells) {
-                            freeCells[changedCell.y][changedCell.x] = !freeCells[changedCell.y][changedCell.x];
-                        }
+                    if (foo instanceof PivotWall) {
+                        Point[][] updateInfo = ((PlayerMoveUpdatable) foo).reverse(oldPlayerOrigin, player.origin, player.getLastMove(), player.getLastMove());
+                        count = handleUpdate(conditionalChangeCells, count, updateInfo);
                     }
                 }
             }
+            conditionalChangeCells = Arrays.copyOf(conditionalChangeCells, count);
+            for(Point conditionalChangeCell : conditionalChangeCells){
+                if(conditionalChangeCell.equals(player.origin)){
+                    conditionalChangeCell = Move.translate(conditionalChangeCell, player.getLastMove(), false);
+                    freeCells[conditionalChangeCell.y][conditionalChangeCell.x] = !freeCells[conditionalChangeCell.y][conditionalChangeCell.x];
+                    break;
+                }
+            }
+
         }
         return player.origin.equals(exit.origin);
     }
 
+    private int handleUpdate(Point[] conditionalChangeCells, int count, Point[][] updateInfo) {
+        for (Point changedCell : updateInfo[0]) {
+            freeCells[changedCell.y][changedCell.x] = !freeCells[changedCell.y][changedCell.x];
+        }
+        if(updateInfo[1].length > 0){
+            conditionalChangeCells[count] = updateInfo[1][0];
+            count++;
+        }
+        return count;
+    }
+
     public String toString(){
         //temporary toString method used for testing
+        char wallCell = '⬛';
         char[][] printedMaze = new char[height + 2][width + 2];
         for(int i = 0; i < width+2; i++){
-            printedMaze[0][i] = 'X';
-            printedMaze[height+1][i] = 'X';
+            printedMaze[0][i] = wallCell;
+            printedMaze[height+1][i] = wallCell;
         }
         for(int i = 1; i < height+1; i++){
-            printedMaze[i][0] = 'X';
-            printedMaze[i][width+1] = 'X';
+            printedMaze[i][0] = wallCell;
+            printedMaze[i][width+1] = wallCell;
         }
         for(int row = 1; row < freeCells.length + 1; row++){
             for(int col = 1; col < freeCells[0].length + 1; col++){
                 if(!freeCells[row-1][col-1]){
-                    printedMaze[row][col] = 'X';
+                    printedMaze[row][col] = wallCell;
                 }else{
-                    printedMaze[row][col] = ' ';
+                    printedMaze[row][col] = '⬜';
                 }
             }
         }
@@ -108,7 +116,11 @@ public class Maze {
                 }
             }
         }
-        printedMaze[player.origin.y+1][player.origin.x+1] = 'O';
+        if(player.origin.equals(exit.origin)){
+            printedMaze[player.origin.y+1][player.origin.x+1] = '⯍';
+        }else{
+            printedMaze[player.origin.y+1][player.origin.x+1] = '⯌';
+        }
 
         StringBuilder toPrint = new StringBuilder();
         for(int row = 0; row < height+2; row++){
@@ -118,6 +130,14 @@ public class Maze {
             }
             toPrint.append('\n');
         }
+        toPrint.append("Last Move: ");
+        switch (player.getLastMove()){
+            case (0) -> toPrint.append("\uD83E\uDC1D");
+            case (1) -> toPrint.append("\uD83E\uDC1E");
+            case (2) -> toPrint.append("\uD83E\uDC1C");
+            case (3) -> toPrint.append("\uD83E\uDC1F");
+        }
+        toPrint.append('\n');
         return toPrint.toString();
     }
 }

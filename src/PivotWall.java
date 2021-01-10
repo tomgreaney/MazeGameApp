@@ -2,8 +2,8 @@ import java.awt.Point;
 
 public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printable {
     //A maze object which represents a rotating wall
-    private boolean reverseAllowed;
-    private boolean isReversing;
+    public static int count = 0;
+    private Point reverseCell;
     private Point endPoint;
     private final Point nextEndPoint;
     private final int sequenceLength;
@@ -26,17 +26,14 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
         }
         this.nextEndPoint = new Point(endPoint);
         setNextEndPoint();
-        isReversing = false;
-        reverseAllowed = false;
+        count++;
     }
 
-    public Point[] reverse(Point playerOrigin, Point oldPlayerOrigin){
-        isReversing = true;
-        Point[] changedCells;
+    public Point[][] reverse(Point oldPlayerOrigin, Point playerOrigin, byte lastMove, byte secondLastMove){
+        Point[][] changedCells;
         setReverse();
-        changedCells = update(playerOrigin, oldPlayerOrigin);
+        changedCells = update(oldPlayerOrigin, playerOrigin, lastMove, secondLastMove);
         setReverse();
-        isReversing = false;
         return changedCells;
     }
 
@@ -55,38 +52,20 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
         setNextEndPoint();
     }
 
-    public Point[] update(Point playerOrigin, Point oldPlayerOrigin) {
-        Point center = new Point((this.endPoint.x + this.nextEndPoint.x) / 2, (this.endPoint.y + this.nextEndPoint.y) / 2);//Point between current endPoint and nextEndPoint
-        Point wallCell = new Point(((endPoint.x + origin.x) / 2), (endPoint.y + origin.y) / 2);//Point which wall blocks
-        Point nextWallCell = new Point(((nextEndPoint.x + origin.x) / 2), (nextEndPoint.y + origin.y) / 2);//Point which wall will block
-        Point[] changedGridCells = {wallCell, nextWallCell};
-        boolean reverseWasAllowed = reverseAllowed;
+    public Point[][] update(Point oldPlayerOrigin, Point playerOrigin, byte lastMove, byte secondLastMove){
+        Point[] changedCells, conditionalChanges;
+        Point wallCell = Move.midPoint(endPoint, origin);//Point which wall blocks
+        Point nextWallCell = Move.midPoint(nextEndPoint, origin);//Point which wall will block
 
-        if(reverseWasAllowed){
-            if(isReversing && !playerOrigin.equals(wallCell)){
-                changedGridCells = new Point[0];
-            }else {
-                changedGridCells = new Point[1];
-                changedGridCells[0] = nextWallCell;
-            }
+        if(oldPlayerOrigin.equals(reverseCell) && (wallCell.equals(Move.translate(oldPlayerOrigin, secondLastMove, false)) || playerOrigin.equals(wallCell))){
+            changedCells = new Point[]{nextWallCell};
+        }else{
+            changedCells = new Point[]{wallCell, nextWallCell};
         }
-        reverseAllowed = false;//the player can reverse on their next move
 
+        reverseCell = Move.midPoint(endPoint, nextEndPoint);
 
-        if(playerOrigin.equals(center) || playerOrigin.equals(nextWallCell) || oldPlayerOrigin.equals(nextWallCell)){
-            int xOffset = wallCell.x - this.origin.x;
-            int yOffset = wallCell.y - this.origin.y;
-            int xPlayerOffset = oldPlayerOrigin.x - playerOrigin.x;
-            int yPlayerOffset = oldPlayerOrigin.y - playerOrigin.y;
-            if(xOffset == xPlayerOffset && yOffset == yPlayerOffset){
-                reverseAllowed = true;
-                if(reverseWasAllowed && !isReversing) {
-                    changedGridCells = new Point[0];
-                }else{
-                    changedGridCells = new Point[1];
-                    changedGridCells[0] = wallCell;
-                }
-            }
+        if(playerOrigin.equals(reverseCell) || playerOrigin.equals(nextWallCell)){
             if(nextEndPoint.x == this.origin.x){
                 playerOrigin.y = nextWallCell.y;
                 playerOrigin.x = (nextEndPoint.x > endPoint.x)? nextEndPoint.x + 1 : nextEndPoint.x - 1;
@@ -96,13 +75,23 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
             }
         }
 
+        boolean sameDirection = lastMove == Move.getMove(Move.midPoint(endPoint, origin), origin);
+
         this.pivot();
+
+        //wallCell = Move.midPoint(endPoint, origin);
+        reverseCell = Move.midPoint(endPoint, nextEndPoint);
+        if(sameDirection && playerOrigin.equals(reverseCell)){
+            conditionalChanges = new Point[]{reverseCell};
+        }else{
+            conditionalChanges = new Point[]{};
+        }
 
         if (reverseState != 0) {
             updateSequence();
         }
 
-    return changedGridCells;
+        return new Point[][]{changedCells, conditionalChanges};
     }
 
     private void pivot(){
@@ -142,8 +131,8 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
             clockWise = !clockWise;
             if(changesPivot){
                 changePivot();
-                setNextEndPoint();
             }
+            setNextEndPoint();
         }else{
             if(reverseState == 1){
                 sequenceStep++;
@@ -162,6 +151,6 @@ public class PivotWall extends MazeObject implements PlayerMoveUpdatable, Printa
     }
 
     public char getPrintChar(){
-        return 'S';
+        return '⯁';
     }
 }

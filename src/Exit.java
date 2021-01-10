@@ -10,6 +10,6 @@ public class Exit extends MazeObject implements Printable{
     }
 
     public char getPrintChar(){
-        return 'U';
+        return '⯎';
     }
 }

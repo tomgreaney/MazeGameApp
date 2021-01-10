@@ -3,17 +3,17 @@ import java.util.Stack;
 public class MoveMemory {
     /*
     //Class used to keep track of the movement of MazeObjects which move by a fixed number of cells
-    //latestMovement byte is a buffer for the last four moves:
-    |    2-bits  |    2-bits    |    2-bits    |    2-bits    |
-    4th last move, 3rd last move, 2nd last move, 1st last move.
+    //latestMovement byte is a buffer for the last 32 moves:
+    |    2-bits   |    2-bits    |    2-bits    |    2-bits    |...
+    32nd last move,31st last move,30th last move,29th last move,...
     00: moved up
     01: moved right
     10: moved left
     11: moved down
      */
-    private Stack<Byte> movements;
-    private byte latestMovement;
-    private byte noOfMoves; // number of moves stored in latestMovement.
+    private Stack<Long> movements;
+    private long latestMovement;
+    private int noOfMoves; // number of moves stored in latestMovement.
 
     public MoveMemory(){
         wipeMemory();
@@ -31,8 +31,8 @@ public class MoveMemory {
 
         if((lastMove ^ newMove) == 0x03){
             //new Move cancels previous move.
-            noOfMoves = (byte)((noOfMoves + 3) % 4);
-            if(noOfMoves == 3){
+            noOfMoves = (noOfMoves + 31) % 32;
+            if(noOfMoves == 31){
                 //latestMoves is empty and must be replaced
                 if(movements.empty()){
                     //moved to the mazes starting square,
@@ -41,17 +41,17 @@ public class MoveMemory {
                     latestMovement = movements.pop();
                 }
             }else{
-                latestMovement = (byte)(latestMovement >> 2);
+                latestMovement = latestMovement >> 2;
             }
             return false;
         }else{
-            noOfMoves = (byte)((noOfMoves + 1) % 4);
+            noOfMoves = (noOfMoves + 1) % 32;
             if(noOfMoves == 0){
                 //latestMovement is full
                 movements.push(latestMovement);
                 latestMovement = newMove;
             }else{
-                latestMovement = (byte)((latestMovement << 2) | newMove);
+                latestMovement = (latestMovement << 2) | newMove;
             }
             return true;
         }
